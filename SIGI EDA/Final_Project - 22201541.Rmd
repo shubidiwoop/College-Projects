@@ -1,0 +1,681 @@
+---
+title: "Final Project"
+author: "Shubham Sharma - 22201541"
+date: "2022-12-02"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+## Part 1: Analysis 
+
+[SIGI database](https://datasetsearch.research.google.com/search?src=0&query=sigi&docid=L2cvMTFqdDRja3dqOQ%3D%3D)
+
+For this part, we are using the SIGI (Social Institutions and Gender Index) which has been provided by UNICEF and OECD. The OECD Development Centre’s Social Institutions and Gender Index (SIGI) is a cross-country measure of discrimination against women in social institutions (formal and informal laws, social norms, and practices) across 180 countries.
+
+Loading the data and converting the tibble to a dataframe
+```{r}
+GIDDB2019_02122022151854504=read.csv(file='./GIDDB2019_02122022151854504.csv', header=TRUE)
+sigi <- as.data.frame(GIDDB2019_02122022151854504)
+```
+
+```{r}
+head(sigi)
+summary(sigi)
+dim(sigi)
+```
+We have 19676 values spread across 13 columns
+
+We need to rename Flag Codes to Flag.Codes to process it further, since it has a space on it and might throw an error.
+
+We can see that Flag.Codes and Flags have non-unique nan values. We can look to drop these columns.
+```{r}
+colnames(sigi)[colnames(sigi) == "Flag Codes"] ="Flag.Codes"
+```
+
+Furthermore INC, LOCATION and REGION gives the shortform for Income, Country and Region respectively, and TIME and Year gives the same value, ie 2019. We can look to drop these columns as well
+```{r}
+unique(sigi$INC)
+unique(sigi$TIME)
+unique(sigi$REGION)
+unique(sigi$Flags)
+unique(sigi$Flag.Codes)
+
+sigi2 <- subset(sigi, select = -c(Flags, Flag.Codes, INC, TIME, REGION, LOCATION))
+
+head(sigi2)
+```
+
+sigi2 contains the following columns:
+
+**Region**: The continent that the country is part of
+
+**Country**: The country for which we have the data
+
+**Income**: The income group type that the country is a part of. It can be one of the following:
+unique(sigi$Income)
+
+**Year**: We are looking at the data for which it was last available, ie 2019
+
+**VAR**: This gives us the indicator that we are estimating. 
+```{r}
+unique(sigi2$VAR)
+```
+
+* Discrimination in the family (DF) including information on marriage customs (age, inheritance, and polygamy) and decisionmaking power within a household (parental authority, repudiation).
+  + Child marriage (CM) Whether women and men have the same legal minimum age of marriage
+  + Household responsibilities (HR) Whether women and men have the same legal rights, decision-making abilities and responsibilities within the household
+  + Inheritance (IN) Whether women and men have the same legal rights to inheritance of land and non-land assets.
+  + Divorce (DV) Whether women and men have the same legal rights to initiate divorce and have the same requirements for divorce or annulment.
+
+* Restricted physical integrity (RPI) capturing violence against women through traditional practices such as female genital mutilation or other attacks (e.g. rape, assault, harassment).
+  + Violence against women (VAW) Whether the legal framework protects women from violence including intimate partner violence, rape and sexual harassment, without legal exceptions and in a comprehensive approach.
+  + Female genital mutilation (FGM)
+  + Missing women (MW)
+  + Reproductive autonomy (RA)
+
+* Restricted access to productive and financial resources (RAPFR) indicating the quality of women’s most basic economic right – to hold property, either in the form of bank loans, land, or other material assets.
+  + Secure access to land (SAL) Whether women and men have the same legal rights and secure access to land assets
+  + Secure access to non-land assets (SANL) Whether women and men have the same legal rights and secure access to non-land assets
+  + Secure access to formal financial services (SAFS) Whether women and men have the same legal rights to open a bank account and obtain credit in a formal financial institution
+  + Workplace rights (WR) Whether women and men have the same legal rights and opportunities in the workplace
+
+* Restricted civil liberties (RCL) measuring the extent to which women can participate in social life (e.g. moving freely in public without the obligation to wear a veil or be escorted by male relatives).
+  + Citizenship rights (CR) Whether women and men have the same citizenship rights and ability to exercise their rights
+  + Freedom of movement (FM) Whether women and men have the same rights to apply for national identity cards (if applicable) and passports and travel outside the country
+  + Political voice (PV) Whether the legal framework promotes women’s equal political representation as men
+  + Access to justice (AJ) Whether women and men have the same rights to provide testimony in court, hold public or political office in the judiciary and sue
+
+**Variable**: Shows the level of discrimination in laws (Law / LAW), social norms (Attitudes / ATT) and practises (Practise / PRACT)
+Formal and informal laws, attitudes and practices that restrict women’s and girls’ access to rights, justice and empowerment opportunities. These are captured in a multi-faceted approach by SIGI’s variables that combine qualitative and quantitative data, taking into account both the de jure and de facto discrimination of social institutions, through information on laws, attitudes and practices. The variables span all stages of a woman’s life in order to show how discriminatory social institutions can interlock and bind them into cycles of poverty and disempowerment.
+
+**Value**: 0 for no discrimination to 1 for very high discrimination.
+The qualitative information detailed in the SIGI country profiles are quantified using the following coding manual:
+
++ 0: The legal framework provides women with the same rights as men, without legal exceptions regarding some groups of women. There is no customary, traditional or religious laws or practices that discriminate against women’s rights.
++ 0.25: The legal framework provides women with the same rights as men, without legal exceptions regarding some groups of women. However, some customary, traditional or religious laws or practices discriminate against women’s rights.
++ 0.5: The legal framework provides women with the same rights as men. However, it does not apply to all group of women.
++ 0.75: The legal framework restricts some women’s rights.
++ 1: The legal framework fully discriminates against women’s rights.
+In cases where no or insufficient information exists, variables are not assigned a value. The legal indicators are assessed based on all applicable legal frameworks, including civil law, religious law, customary law and traditional law.
+
+```{r}
+head(sigi2[
+  with(sigi2, order(Country, VAR)),
+])
+```
+Since the values are noted twice, once under all regions/ income groups and once under the individual values, we can discard those values to avoid duplicates. 
+```{r}
+sigi3<-subset(sigi2, Region!="All regions")
+sigi3<-subset(sigi3, Income!="All income groups")
+```
+
+Taking the look at the cleaned up data
+```{r}
+head(sigi3)
+dim(sigi3)
+```
+The cleaned data has been reduced to 4919 rows spread across 7 columns
+
+Including additional libraries
+```{r}
+library("dplyr")
+library(tidyverse)
+```
+
+```{r}
+#Filtering the dataset by checking gender inequality by law (which varies from 0 to 1), attitude and practises  
+df_law_vals = sigi3 %>% filter(str_detect(VAR, 'LAW'))
+df_pract_vals = sigi3 %>% filter(str_detect(VAR, 'PRACT'))
+df_att_vals = sigi3 %>% filter(str_detect(VAR, 'ATT'))
+
+unique(df_pract_vals$VAR)
+unique(df_law_vals$VAR)
+unique(df_att_vals$VAR)
+# shows the following values can be compared across law, attitude and practises: 
+# df_hr ; rpi_vaw ; rapfr_wr ; rcl_pv ; rpi_fgm
+
+# Filtering missing women around the world
+df_mw_vals = sigi3 %>% filter(str_detect(VAR, 'MW'))
+unique(df_mw_vals$VAR)
+# this shows values by practise alone
+
+# Filtering for violence against women across law, practise and attitude
+df_rpi_law_vals = sigi3 %>% filter(str_detect(VAR, 'RPI_VAW_LAW'))
+df_rpi_pract_vals = sigi3 %>% filter(str_detect(VAR, 'RPI_VAW_PRACT'))
+df_rpi_att_vals = sigi3 %>% filter(str_detect(VAR, 'RPI_VAW_ATT'))
+```
+
+```{r}
+# Taking mean by values, grouping by continent and country
+df_law_continent=df_law_vals %>%
+  group_by(Region) %>%
+  summarise_at(vars(Value), list(name = mean))
+  
+df_law_country=df_law_vals %>%
+  group_by(Country) %>%
+  summarise_at(vars(Value), list(name = mean))
+
+# Taking mean by values, grouping by income groups
+df_income=df_law_vals %>%
+  group_by(Income) %>%
+  summarise_at(vars(Value), list(Value = mean))
+
+# Taking mean by values, grouping by discrimination of women in household responsibilites 
+df_hr_vals = sigi3 %>% filter(str_detect(VAR, 'DF_HR'))
+df_hr=df_hr_vals %>%
+  group_by(VAR) %>%
+  summarise_at(vars(Value), list(Value = mean))
+
+# Taking mean by values, grouping by gender inequality pertaining to a political voice
+df_rcl_vals = sigi3 %>% filter(str_detect(VAR, 'RCL_PV'))
+df_rcl=df_rcl_vals %>%
+  group_by(VAR) %>%
+  summarise_at(vars(Value), list(Value = mean))
+
+# Taking mean by values, grouping by gender inqueality in the workplace
+df_wr_vals = sigi3 %>% filter(str_detect(VAR, 'RAPFR_WR'))
+df_wr=df_wr_vals %>%
+  group_by(VAR) %>%
+  summarise_at(vars(Value), list(Value = mean))
+```
+
+Plotting a boxplot of Region vs Values
+```{r}
+ggplot(df_law_vals, aes(x = Region, y = Value)) + 
+  geom_violin(alpha = 0.5, width = 1, fill = 'lightblue')+
+    geom_boxplot(width = 0.25, fatten = 3, width = 0.3)+
+      geom_jitter(color="black", size=2, alpha = 0.3, width = 0.2) +
+    theme(axis.text.x = element_text(angle = 30, hjust = 1)) +
+    ggtitle("SIGI value for gender inequality by law Continent wise") + theme_classic()
+```
+
+* Here, the plot depicts the level of discrimination as per the laws laid down, continent wise. 
+* We can see that Europe and the Americas have relatively lower levels of discrimination due to the cluster of points close to 0. 
+* Asia has it's values spread across, dictating gender inequality in certain countries more than others. 
+* Africa has a lots of points clustered around 0.2-0.4, which indicated relatively lower gender inequality, but this is countered by considering the number of points close to 1. 
+
+Plotting a bargraph of Income groups vs values
+```{r}
+ggplot(data=df_income, aes(x=Income, y=Value)) +
+  geom_bar(stat="identity", fill="steelblue")+
+  geom_text(aes(label=Value), vjust=1.6, color="white", size=3.5) + 
+  ggtitle("Gender inequality by different income group countries") + 
+  theme_minimal()
+```
+
+* The following plot shows the gender inequality as laid down by the law for different strata of countries. 
+* We can see that high income countries have a relatively lower value of gender inequality than low income countries. 
+* We can assume a causal relationship, but more insights can be drawn by the F-test to affirm this.
+* Furthermore, for high income countries the legal framework provides women with the same rights as men, without legal exceptions regarding some groups of women. However, some customary, traditional or religious laws or practices discriminate against women’s rights. 
+* The lower middle countries, also have a higher level of inequality than the upper middle income countries. 
+* According to the key provided above, we can confirm that the legal framework provides women with the same rights as men for low income countries. However, it does not apply to all group of women. 
+
+Plotting a world heat map of countries vs values
+```{r}
+world_coordinates <- map_data("world")
+world_coordinates %>%
+  merge(df_law_vals, by.x = "region", by.y = "Country", all.x = T) %>%
+  arrange(group, order) %>%
+  ggplot(aes(x = long, y = lat, group = group, fill = Value)) + labs(title="Gender inequality around the world") +  geom_polygon()
+```
+
+* The following plot shows the discrimination against women around the world as laid down by the law across all 4 factors (stated above). 
+* Lighter blue values indicate greater gender inequality.
+* We can see that countries like Australia, Canada, and several European countries have fared well in this regard. 
+* Certain South American, African and Asian countries (like India, Argentina, Mongolia, Mali etc) haven't performed as well, and have scope for improvement. 
+
+Plotting a barplot of discrimination in household responsibilites by indicators around the world
+```{r}
+    ggplot(data=df_hr, aes(x=VAR, y=Value)) +
+  geom_bar(stat="identity", fill="steelblue")+
+  geom_text(aes(label=Value), vjust=-0.3, size=3.5) + 
+  ggtitle("Discrimination in household responsibilites by indicators around the world") + 
+  theme_minimal()
+```
+
+* We can see that although the law dictates low (0.59) gender inequality, this isn't practised nor are the social norms followed around the world. 
+* There is still discrimination in the household - whether women and men have the same legal rights, decision-making abilities and responsibilities within the household. 
+* Although, the value in practise is fairly low, the attitude is higher than expected, and should be mended. 
+
+The following countries have fairly large and small values:
+```{r}
+head(df_hr_vals[order(df_hr_vals$Value),]$Country) # low values
+tail(df_hr_vals[order(df_hr_vals$Value),]$Country) # high values
+```
+
+Plotting a barplot of gender inequality in having a political voice around the world 
+```{r}
+ggplot(data=df_rcl, aes(x=VAR, y=Value)) +
+  geom_bar(stat="identity", fill="steelblue")+
+  geom_text(aes(label=round(Value, digits=2)), vjust=-0.3, size=3.5) + 
+  ggtitle("Whether women have an equal political voice around the world") + 
+  theme_minimal()
+```
+
+* We can see that although the law dictates very low gender inequality across the world (0.29), this isn't practised nor are the social norms followed. 
+* Both in practise and in attitude, the legal framework doesn't promotes women’s equal political representation as men. 
+* The attitude shown is twice as worse as the practises followed.
+
+The following countries have fairly large and small values:
+```{r}
+head(df_rcl_vals[order(df_rcl_vals$Value),]$Country) # low values
+tail(df_rcl_vals[order(df_rcl_vals$Value),]$Country) # high values
+```
+
+Plotting a barplot of gender inqueality in the workplace around the world
+```{r}
+ggplot(data=df_wr, aes(x=VAR, y=Value)) +
+  geom_bar(stat="identity", fill="steelblue")+
+  geom_text(aes(label=round(Value, digits=2)), vjust=-0.3, size=3.5) + 
+  ggtitle("Whether women have equal rights in the workplace around the world") + 
+  theme_minimal()
+```
+
+According to the law (0.69), the legal framework restricts some women’s rights when to comes to the workplace around the world. Herein, the practises followed are twice as worse as the attitude or the social norms dictates. 
+
+The following countries have fairly large and small values:
+```{r}
+head(df_wr_vals[order(df_wr_vals$Value),]$Country) # low values
+tail(df_wr_vals[order(df_wr_vals$Value),]$Country) # high values
+```
+
+Scatter plot showing the gender inequality by continent and variables
+```{r}
+ggplot() +               
+  geom_point(data = df_law_vals, aes(Value, Region, fill='Law'), 
+             size = 5, shape = 21)+
+  geom_point(data = df_pract_vals, aes(Value, Region, fill='Practise'), 
+             size = 5, shape = 21)+
+  geom_point(data = df_att_vals, aes(Value, Region, fill='Attitude'), 
+             size = 5, shape = 21)+
+    scale_color_manual(
+    values = c("red", "blue", "green")
+  ) +
+  labs(x = "Discrimination level", y = "Continents")+
+  ggtitle("Gender Inequality by continent")
+```
+
+* The following scatter plot shows the gender inequality around the world, grouped by continents and colored by the variable. 
+* We can see that in general, inequality fairs worse in practise than in attitude.
+* This is more so in Asia where there is a clear gap between practise and attitude points.
+* Even certain practises in the Americas fair worse than the attitude against women. 
+* The law points are spread across 0 and 1, and can't be visually inferred via this plot. 
+
+```{r}
+world_coordinates %>%
+  merge(df_mw_vals, by.x = "region", by.y = "Country", all.x = T) %>%
+  arrange(group, order) %>%
+  ggplot(aes(x = long, y = lat, group = group, fill = Value)) + labs(title="Missing women around the world") +  geom_polygon()
+```
+
+* The following world map shows the number of missing women around the world. 
+* We can see that there is relatively higher number of missing women in and around India as compared to the rest of the world. 
+* Since this is an absolute number, we can draw a causal relationship to the population of this region. Since this region is densily populated, we can expect higher cases of missing women here than the rest of the world.
+
+Countries with high cases of missing women
+```{r}
+df_mw_vals_high = filter(df_mw_vals, Value>110) 
+df_mw_vals_high$Country
+
+head(df_mw_vals[order(df_mw_vals$Value),]$Country) # low values
+```
+
+```{r}
+plot(df_rpi_pract_vals$Value, df_rpi_att_vals[1:nrow(df_rpi_pract_vals),]$Value,
+xlab="Violence against women in practise", ylab="Violence against women in attitude",
+   main="Violence against women",)
+abline(lm(df_rpi_pract_vals$Value ~ df_rpi_att_vals[1:nrow(df_rpi_pract_vals),]$Value), col="red")
+```
+
+We can see that there is a mild linear correlation for violence against women in practise and in attitude. There is a cluster in the bottom left (below 20), however certain outliers lie in both practise and attitude. 
+
+In conclusion, from the SIGI dataset provided by OECD, we can infer that there is significant data to infer that gender inequality exists across several domains in law, attitude and practise around the world. 
+
+## Part 2: R Package
+**OpenCV** : [CRAN link](https://cran.r-project.org/web/packages/opencv/index.html)
+
+OpenCV is a highly optimized library to experiment with computer vision algorithms and machine learning in R with focus on real-time applications. This package exposes some of the available OpenCV algorithms, such as edge, body or face detection. These can either be applied to analyze static images, or to filter live video footage from a camera device. OpenCV is open source and released under the Apache 2 License. It is free for commercial use. In RSudio IDE the image objects will automatically be displayed in the viewer pane. Real life application include but are not limited to perform tasks like face detection, objection tracking, landmark detection, and much more.
+
+Installing and loading the package:
+  ```{r eval=FALSE}
+install.packages("opencv")
+install.packages("jpeg")
+```
+
+OpenCV building blocks:
+
+* ocv_read and ocv_write to load/save images on disk
+* ocv_picture and ocv_video to use your webcam.
+
+Reading an image of the winners of the world cup, Argentina group photo
+```{r warning=FALSE}
+library("opencv")
+img_sample <- ocv_read('https://www.reuters.com/resizer/n8sBv4ERS01wrNUzOo0syfShmY0=/1200x0/filters:quality(80)/cloudfront-us-east-2.images.arcpublishing.com/reuters/GUJC3GLFD5I5HAJESYXZNF2YEY.jpg')
+```
+
+Makes circle around the faces
+```{r}
+faces <- ocv_face(img_sample)
+```
+
+Writes it back to a user-specified file.
+"jpeg" package has been used to render jpg images on the knitted pdf document
+```{r}
+library("jpeg")
+# Urbanek S (2022). _jpeg: Read and write JPEG images_. R package version 0.1-10,
+#  <https://CRAN.R-project.org/package=jpeg>.
+ocv_write(faces, 'faces.jpg')
+jj <- readJPEG("faces.jpg",native=TRUE)
+plot(0:1,0:1,type="n",ann=FALSE,axes=FALSE)
+rasterImage(jj,0,0,1,1)
+```
+
+Give the x, y coordinate of the centers of the face along with the radius of the circle around it
+```{r}
+facemask <- ocv_facemask(img_sample)
+attr(facemask, 'faces')
+```
+
+This isn't strictly needed, but saves on space and memory. Destroying the object
+```{r eval=FALSE}
+ocv_destroy(img_sample)
+```
+
+This method uses the live camera for face and edge detection
+```{r eval=FALSE}
+ocv_video(ocv_face)
+ocv_video(ocv_edges)
+```
+
+```{r out.width="50%"}
+knitr::include_graphics("facerec.jpg")
+knitr::include_graphics("edgerec.jpg")
+```
+
+The following gets the webcam size to help in scaling
+```{r}
+test <- ocv_picture()
+bitmap <- ocv_bitmap(test)
+width <- dim(bitmap)[2]
+height <- dim(bitmap)[3]
+```
+
+To replace the background with plot
+```{r}
+png('bg.png', width = width, height = height)
+par(ask=FALSE)
+print(ggplot2::qplot(speed, dist, data = cars, geom = c("smooth", "point")))
+dev.off()
+bg <- ocv_read('bg.png')
+unlink('pg.png')
+
+```
+
+Plot with edge detection
+```{r eval=FALSE}
+ocv_video(function(input){
+  mask <- ocv_mog2(input)
+  return(ocv_copyto(input, bg, mask))
+})
+```
+
+Plot with face detection
+```{r eval=FALSE}
+ocv_video(function(input){
+  mask <- ocv_facemask(input)
+  ocv_copyto(input, bg, mask)
+})
+```
+
+```{r out.width="50%"}
+knitr::include_graphics("plotedge.jpg")
+knitr::include_graphics("plotface.jpg")
+```
+
+Generating a plot and overlaying faces on the plot positions face based on plot
+```{r}
+makeplot <- function(x){
+  png('bg.png', width = width, height = height, res = 96)
+  on.exit(unlink('bg.png'))
+  groups <- seq(0, width, length.out = 4)
+  left <- rep("left", sum(x < groups[2]))
+  middle <- rep("middle", sum(x >= groups[2] & x < groups[3]))
+  right <- rep("right", sum(x >= groups[3]))
+  f <- factor(c(left, middle, right), levels = c('left', 'middle', 'right'),
+              labels = c("Tidy!", "Whatever Works", "Base!"))
+  color = I(c("#F1BB7B", "#FD6467", "#5B1A18"))
+  plot(f, ylim = c(0, 5),
+       main = "Are you a tidyer or baser?", col = color)
+  dev.off()
+  ocv_read('bg.png')
+}
+```
+
+```{r eval=FALSE}
+ocv_video(function(input){
+  mask <- ocv_facemask(input)
+  faces <- attr(mask, 'faces')
+  bg <- makeplot(faces$x)
+  return(ocv_copyto(input, bg, mask))
+})
+```
+
+```{r out.width="50%"}
+knitr::include_graphics("plotwithface.jpg")
+```
+
+We can see that the plot adds in accordance with the location of the face. If a face is present, a plot is added below it.
+
+Further usage involves the following functions:
+
+```{r}
+style = ocv_stylize(img_sample) # styles the image
+ocv_write(style, 'style.jpg')
+jj <- readJPEG("style.jpg",native=TRUE)
+plot(0:1,0:1,type="n",ann=FALSE,axes=FALSE)
+rasterImage(jj,0,0,1,1)
+
+marker = ocv_markers(img_sample) # adds marker points based on significant features
+ocv_write(marker, 'marker.jpg')
+jj <- readJPEG("marker.jpg",native=TRUE)
+plot(0:1,0:1,type="n",ann=FALSE,axes=FALSE)
+rasterImage(jj,0,0,1,1)
+
+blur = ocv_blur(img_sample, ksize = 5) # blurs image based on radius ksize
+ocv_write(blur, 'blur.jpg')
+jj <- readJPEG("blur.jpg",native=TRUE)
+plot(0:1,0:1,type="n",ann=FALSE,axes=FALSE)
+rasterImage(jj,0,0,1,1)
+
+sketch = ocv_sketch(img_sample, color = TRUE) # adds sketch filter
+ocv_write(sketch, 'sketch.jpg')
+jj <- readJPEG("sketch.jpg",native=TRUE)
+plot(0:1,0:1,type="n",ann=FALSE,axes=FALSE)
+rasterImage(jj,0,0,1,1)
+
+grayscale = ocv_grayscale(img_sample) # makes the images grayscaled / black and white
+ocv_write(grayscale, 'grayscale.jpg')
+jj <- readJPEG("grayscale.jpg",native=TRUE)
+plot(0:1,0:1,type="n",ann=FALSE,axes=FALSE)
+rasterImage(jj,0,0,1,1)
+```
+
+The following usecases also exists using OpenCV:
+```{r eval=FALSE}
+ocv_facemask(image)
+ocv_bitmap(img_sample) # gives location bitwise
+ocv_video(filter) # adds filter to live video
+ocv_copyto(image, target, mask) # copy pastes image
+ocv_mog2(img_sample)
+ocv_knn(img_sample)
+ocv_resize(img_sample, width = 0, height = 0) # resizing images
+ocv_display(img_sample) # displays image
+ocv_hog(img_sample) # image detecion circles
+```
+
+Following gives the metadata
+```{r}
+ocv_version() # Displays version of openCV
+ocv_info(img_sample) # gives image specifications
+```
+
+The following are the arguments needed 
+
++ image: an ocv image object
++ path: image file such as png or jpeg
++ width: output width in pixels
++ height: output height in pixels
++ ksize: size of blurring matrix
++ color: true or false
++ target: the output image
++ mask: only copy pixels from the mask
++ filter: an R function that takes and returns an opecv image
+
+
+Another usecase is to manipulate image regions
+```{r eval=FALSE}
+ocv_rectangle(image, x = 0L, y = 0L, width, height)
+ocv_polygon(image, pts, convex = FALSE, crop = FALSE, color = 255)
+ocv_bbox(image, pts)
+ocv_chull(pts)
+```
+
++ image: an ocv image object
++ x: horizontal location
++ y: vertical location
++ width: width of the area
++ height: height of the area
++ pts: a list of points with elements x and y
++ convex: are the points convex
++ crop: crop the resulting area to its bounding box
++ color: color for the non-polygon area
+
+## Part 3: Functions/Programming
+
+Here, we are using an encryption algorithm as the statistical analysis of interest. The Caesar Cipher technique is one of the earliest and simplest methods of encryption technique. It’s simply a type of substitution cipher, i.e., each letter of a given text (word) is replaced by a letter with a fixed number of positions (key) down the alphabet. 
+
+Input: 
+
+* A String of letters, called Word
+* An Integer/key between 0-25 denoting the required shift
+
+Creating an S3 class. This is done by creating a list and giving it a class. Here the list consists of the input above and this is assigned to an 'encrypt' class.
+```{r}
+word1 <- list(word="DATAPROGRAMMINGWITHR", key=2) 
+word2 <- list(word="PROJECT", key=4)
+class(word1) = 'encrypt'
+class(word2) = 'encrypt'
+```
+
+Algorithm:
+
+1. Traverse the given word one character at a time .
+2. For each character, transform the given character as per the rule, depending on whether we’re encrypting or decrypting the text.
+3. Return the new encrypted word generated.
+
+```{r}
+encrypt_f <- function(word, key){
+    asNumbers <- strtoi(charToRaw(toupper(word)), 16) - 65 # converts string to integers according to base 16
+    shifted <- ((asNumbers + key) %% 26) + 65 # mod 26 taken, since there are 26 alphabets, shifted above by key places
+    encr <- rawToChar(as.raw(shifted)) # converted raw bytes back to characters
+    return(encr) # returns encrypted string
+}
+```
+
+We can either write another function decrypt similar to encrypt, that’ll apply the given shift in the opposite direction to decrypt the original text. Return the original word decrypted
+```{r}
+decrypt_f <- function(word, key){
+    asNumbers <- strtoi(charToRaw(toupper(word)), 16) - 65 # converts string to integers according to base 16
+    shifted <- ((asNumbers - key) %% 26) + 65  # mod 26 taken, since there are 26 alphabets, shifted below by key places
+    decr <- rawToChar(as.raw(shifted)) # converted raw bytes back to characters
+    return(decr) # returns decrypted string
+}
+```
+
+
+We can write a neater print method that gives a concise description of the object and shows the original and encrypted words. The print method invisibly returns the original object.
+```{r}
+print.encrypt <- function(ps){
+    encr = encrypt_f(ps$word, ps$key) # passed to encrypt function
+    cat('Original Word: ',ps$word, '\n')
+    cat('Encrypted Word: ', encr)
+}
+```
+
+The output to print is as follows
+```{r}
+print(word1)
+print(word2)
+```
+
+Furthermore, we can write a plot method of the time time to encrypt and decrypt and color according to validity of word as a password. Red signifies that the length is too small (less than 8) and green signifies that the length is suitable (greater than or equal to 8)
+```{r}
+plot.encrypt <- function(pl){
+  start_encr <- Sys.time() # taking starting time
+  encr = encrypt_f(pl$word, pl$key) # passed to encrypt function
+  end_encr <- Sys.time() # taking ending time
+  encr_time = (end_encr - start_encr) # finding difference to see how long encrypt function ran for 
+  start_decry <- Sys.time() # taking starting time
+  decr = decrypt_f(encr, pl$key) # passed to decrypt function
+  end_decr <- Sys.time() # taking ending time
+  decr_time = end_decr - start_decry # finding difference to see how long decrypt function ran for 
+  time=c(as.numeric(encr_time),as.numeric(decr_time))
+  time_vals=c("Encryption","Decryption")
+  
+  # Plotting a barplot of time vs mode and coloring based on length of word
+  if(nchar(pl$word)<8){
+  barplot(time,names.arg=time_vals, col="red", main="Time taken", ylab="Time (in seconds)")
+}
+else{
+  barplot(time,names.arg=time_vals, col="green", main="Time taken", ylab="Time (in seconds)")
+}
+}
+```
+
+The output to plot is as follows:
+```{r}
+plot(word1)
+plot(word2)
+```
+
+We can see that encryption takes longer than decryption for word1, and since the color is green, it implies that the word length is signifiantly long for a password. Also, we can see that decryption takes longer than encryption for word2, and since the color is red, it implies that the word length is not signifiantly long for a password.
+
+The complexity of this encryption algorithm is as follows:
+
+* Time complexity: O(N) where N is length of the given text
+* Auxiliary space: O(N)
+
+In addition, we can write a summary method that create a more verbose descriptions of the object. The summary below gives the time taken for encrytion and decryption, the space used by the encrypted, decrypted word and the key and if the word is significantly long for a password or not. 
+```{r}
+summary.encrypt <- function(sm){
+    start_time <- Sys.time() # taking starting time
+    encr = encrypt_f(sm$word, sm$key) # passed to encrypt function
+    end_time <- Sys.time() # taking ending time
+    start_time_d <- Sys.time() # taking starting time again 
+    decr = decrypt_f(encr, sm$key) # passed to decrypt function
+    end_time_d <- Sys.time() #  taking ending time
+    cat("Original word: ", sm$word, "used ", object.size(sm$word), "bytes space", '\n') # printing the size of the original word
+    cat("Encrypted word: ", encr, "used ", object.size(encr), "bytes space", '\n') # printing the size of the encrypted word
+    cat("Key used: ", sm$key, "used ", object.size(sm$key), "bytes space", '\n') # printing the size of the key
+    cat("Time taken to encrypt: ", (end_time-start_time), '\n') # difference of the start and end time gives the time taken to encrypt
+    cat("Time taken to decrypt: ", (end_time_d-start_time_d), '\n')  # difference of the start and end time gives the time taken to decrypt
+    if(nchar(sm$word)<8){ # checking the length of the word
+      cat("Password is not secure since it is ", nchar(sm$word), "characters long")
+    }
+    else{
+      cat("Password is secure since it is ", nchar(sm$word), "characters long")
+}
+}
+```
+
+The output to summary is follows:
+```{r}
+summary(word1)
+summary(word2)
+```
+
+
